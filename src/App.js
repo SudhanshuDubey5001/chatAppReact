@@ -6,30 +6,44 @@ import { listMessages, messagesByChannelID } from './graphql/queries';
 import '@aws-amplify/pubsub';
 import { onCreateMessage } from './graphql/subscriptions';
 import { createMessage } from './graphql/mutations';
+import { withAuthenticator, Authenticator } from '@aws-amplify/ui-react';
+import { Auth } from 'aws-amplify';
+
 
 function App() {
-  
+
+  //lets setup the user auth first 
+  const [userInfo, setUserInfo] = useState(null);
+
+  useEffect(() => {
+    Auth.currentUserInfo()
+      .then((userInfo) => {
+        setUserInfo(userInfo);
+        console.log(userInfo);
+      });
+  }, []);
+
   const [messageBody, setMessageBody] = useState('');
-  
+
   const handleChange = (event) => {
     setMessageBody(event.target.value);
   };
 
-  const handleSubmit = async (event) => { 
+  const handleSubmit = async (event) => {
     event.preventDefault();
     event.stopPropagation();
 
     const input = {
       channelID: '1',
-      author: 'Dave',
-      body: messageBody.trim() 
+      author: userInfo.id,
+      body: messageBody.trim()
     };
 
-    try{
+    try {
       //first empty the text box once submit is pressed
       setMessageBody('');
-      await API.graphql(graphqlOperation(createMessage, {input}))
-    }catch(error){
+      await API.graphql(graphqlOperation(createMessage, { input }))
+    } catch (error) {
       console.warn(error);
     }
   };
@@ -90,29 +104,46 @@ function App() {
 
 
   return (
-    <div className="container">
-      <div className="messages">
-        <div className="messages-scroller">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={msg.author === 'Dave' ? 'message me' : 'message'}>{msg.body}</div>
-          ))}
+    <div className="app">
+      {userInfo && (
+        <div className="header">
+          <div className="profile">
+            You are logged in as: <strong>{userInfo.username}</strong>
+          </div>
+          <Authenticator>
+            {({ signOut, user }) => (
+              <div className="App">
+                <button onClick={signOut}>Sign out</button>
+              </div>
+            )}
+          </Authenticator>
         </div>
-      </div>
-      <div className="chat-bar">
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            name="message"
-            placeholder="Type your message here"
-            onChange={handleChange}
-            value={messageBody}
-          />
-        </form>
+      )}
+      <div className="container">
+        <div className="messages">
+          <div className="messages-scroller">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={msg.author === userInfo?.id ? 'message me' : 'message'}>{msg.body}</div>
+            ))}
+          </div>
+        </div>
+        <div className="chat-bar">
+          <form onSubmit={handleSubmit}>
+            <input
+              type="text"
+              name="message"
+              placeholder="Type your message here"
+              disabled={userInfo === null}
+              onChange={handleChange}
+              value={messageBody}
+            />
+          </form>
+        </div>
       </div>
     </div>
   );
 }
 
-export default App;
+export default withAuthenticator(App);
