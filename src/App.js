@@ -3,14 +3,36 @@ import './App.css';
 import { useEffect, useState } from 'react';
 import { API, graphqlOperation } from '@aws-amplify/api';
 import { listMessages, messagesByChannelID } from './graphql/queries';
-
-// Placeholder function for handling changes to our chat bar
-const handleChange = () => { };
-
-// Placeholder function for handling the form submission
-const handleSubmit = () => { };
+import '@aws-amplify/pubsub';
+import { onCreateMessage } from './graphql/subscriptions';
+import { createMessage } from './graphql/mutations';
 
 function App() {
+  
+  const [messageBody, setMessageBody] = useState('');
+  
+  const handleChange = (event) => {
+    setMessageBody(event.target.value);
+  };
+
+  const handleSubmit = async (event) => { 
+    event.preventDefault();
+    event.stopPropagation();
+
+    const input = {
+      channelID: '1',
+      author: 'Dave',
+      body: messageBody.trim() 
+    };
+
+    try{
+      //first empty the text box once submit is pressed
+      setMessageBody('');
+      await API.graphql(graphqlOperation(createMessage, {input}))
+    }catch(error){
+      console.warn(error);
+    }
+  };
 
   const [messages, setMessages] = useState([]);
 
@@ -27,7 +49,45 @@ function App() {
           setMessages(items);
         }
       })
-  }, [])
+  }, []);
+
+
+  //to send messages we will - 
+  // We subscribed to create mutations (onCreateMessage subscription) 
+  //using the Amplify API library using API.graphql(...).subscribe(...). 
+  //This returns a reference to the subscription so we can eventually unsubscribe from it 
+  //during clean-up.
+  // We passed an object containing our callbacks to the .subscribe(...) function and it 
+  //looks something like this:
+
+  // {
+  //   next: (event) => {
+  //     // do something with event
+  //   },
+  //   error: (error) => {
+  //     // raise or handle error
+  //   }
+  // }
+
+  useEffect(() => {
+    const subscriptions = API
+      .graphql(graphqlOperation(onCreateMessage))
+      .subscribe({
+        next: (event) => {
+          setMessages([...messages, event.value.data.onCreateMessage]);
+        }
+      });
+    return () => {
+      subscriptions.unsubscribe();
+    }
+  }, [messages]);
+
+  //So once subscribed, every new message created will trigger our next callback function 
+  //that accepts an event argument. 
+  //Using the event, we can add the new message into our component's 
+  //state by appending event.value.data.onCreateMessage to our list of messages.
+
+
 
   return (
     <div className="container">
@@ -44,10 +104,10 @@ function App() {
         <form onSubmit={handleSubmit}>
           <input
             type="text"
-            name="messageBody"
+            name="message"
             placeholder="Type your message here"
             onChange={handleChange}
-            value={''}
+            value={messageBody}
           />
         </form>
       </div>
