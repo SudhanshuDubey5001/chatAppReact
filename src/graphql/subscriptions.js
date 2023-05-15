@@ -5,6 +5,7 @@ export const onCreateMessage = /* GraphQL */ `
   subscription OnCreateMessage($filter: ModelSubscriptionMessageFilterInput) {
     onCreateMessage(filter: $filter) {
       id
+      channelID
       author
       body
       createdAt
@@ -16,6 +17,7 @@ export const onUpdateMessage = /* GraphQL */ `
   subscription OnUpdateMessage($filter: ModelSubscriptionMessageFilterInput) {
     onUpdateMessage(filter: $filter) {
       id
+      channelID
       author
       body
       createdAt
@@ -27,6 +29,7 @@ export const onDeleteMessage = /* GraphQL */ `
   subscription OnDeleteMessage($filter: ModelSubscriptionMessageFilterInput) {
     onDeleteMessage(filter: $filter) {
       id
+      channelID
       author
       body
       createdAt
